@@ -15,6 +15,7 @@ namespace can2mqtt.Translator.StiebelEltron
         private readonly ILogger Logger;
 
         private readonly FallbackValueConverter fallbackValueConverter = new();
+        private readonly ConvertDefault convertDefault = new();
         // initialize elster index once
         private static readonly ElsterIndex ElsterIndex = new();
         private static Lazy<IEnumerable<string>> MqttTopicsToPollList = new(() => ElsterIndex.ElsterIndexTable.Where(x => !x.IgnorePolling).Select(x => x.MqttTopic).ToList());
@@ -62,7 +63,9 @@ namespace can2mqtt.Translator.StiebelEltron
             //Index not available
             if (indexData == null) {
                 if (convertUnknown) {
-                    Logger.LogInformation($"Fallback convertion:{Environment.NewLine}{fallbackValueConverter.ConvertValue(payloadData)}");
+                    Logger.LogInformation($"Fallback convertion: {Environment.NewLine}{fallbackValueConverter.ConvertValue(payloadData)}");
+                    rawData.MqttValue = convertDefault.ConvertValue(payloadData);
+                    rawData.MqttTopicExtention = $"{rawData.PayloadSenderCanId}_{rawData.ValueIndex}";
                 }
                 return rawData;
             }
