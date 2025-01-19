@@ -2,6 +2,8 @@
 // http://juerg5524.ch/list_data.php
 // https://wiki.c3re.de/index.php/Projekt_23_Smarthome_/_Zugriff_Heizung
 
+using System.Text;
+
 namespace can2mqtt.Translator.StiebelEltron
 {
 
@@ -21,6 +23,10 @@ namespace can2mqtt.Translator.StiebelEltron
         private static Lazy<IEnumerable<string>> MqttTopicsToPollList = new(() => ElsterIndex.ElsterIndexTable.Where(x => !x.IgnorePolling).Select(x => x.MqttTopic).ToList());
 
         private readonly IDictionary<int, string> partialCombinedValues = new Dictionary<int, string>();
+        
+        private readonly int KeepUniqueValues = 1000;
+
+        private readonly IDictionary<int, HashSet<string>> unknownValues = new Dictionary<int, HashSet<string>>();
 
         public StiebelEltron(ILoggerFactory loggerFactory) {
             Logger = loggerFactory.CreateLogger("StiebelEltronTranslator");
@@ -60,13 +66,32 @@ namespace can2mqtt.Translator.StiebelEltron
             indexData ??= ElsterIndex.ElsterIndexTable.FirstOrDefault(x => x.Index == payloadIndex);
             indexData ??= ElsterIndex.ElsterIndexTable.FirstOrDefault(x => x.CombineIndex == payloadIndex);
 
+            rawData.IsComplete = true;
+
             //Index not available
             if (indexData == null) {
                 if (convertUnknown) {
-                    Logger.LogDebug("Fallback convertion: {1}{0}", fallbackValueConverter.ConvertValue(payloadData), Environment.NewLine);
-                    rawData.MqttValue = convertDefault.ConvertValue(payloadData);
-                    rawData.MqttTopicExtention = $"{rawData.PayloadSenderCanId}_{rawData.ValueIndex}";
+                    // Logger.LogInformation("Fallback convertion: {1}{0}", fallbackValueConverter.ConvertValue(payloadData), Environment.NewLine);
+                    // rawData.MqttValue = convertDefault.ConvertValue(payloadData);
+                    // rawData.MqttTopicExtention = $"/unknown/{rawData.PayloadSenderCanId}_{rawData.ValueIndex}/default";
+                    // Logger.LogInformation("Fallback convertion: MQTT topic: {0} value: {1}", rawData.MqttTopicExtention, rawData.MqttValue);
+                    var convertedValue = convertDefault.ConvertValue(payloadData);
+                    if (!unknownValues.TryGetValue(payloadIndex, out var bufferedValues)) {
+                        bufferedValues = [convertedValue];
+                        unknownValues.Add(payloadIndex, bufferedValues);
+                    } else  if (bufferedValues.Count < KeepUniqueValues) {
+                        bufferedValues.Add(convertedValue);
+                    }
+
+                    var sb = new StringBuilder();
+                    foreach (var value in bufferedValues) {
+                        sb.Append($"{value}, ");
+                    }
+
+                    Logger.LogInformation("Fallback conversion for sender {0}, index {1}: values: {2}", rawData.PayloadSenderCanId, rawData.ValueIndex, sb.ToString());
                 }
+
+
                 return rawData;
             }
 
@@ -82,11 +107,9 @@ namespace can2mqtt.Translator.StiebelEltron
 
                 rawData.MqttValue = $"{indexData.CombinedConverter.CombineValues(payloadFragment, convertedValue)}{(!noUnit ? indexData.Unit : string.Empty)}";
                 partialCombinedValues.Remove(indexData.Index);
-                rawData.IsComplete = true;
                 return rawData;
             }
 
-            rawData.IsComplete = true;
             if (indexData.Converter == null) //custom converter
             {
                 try
