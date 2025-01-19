@@ -63,7 +63,7 @@ namespace can2mqtt.Translator.StiebelEltron
             //Index not available
             if (indexData == null) {
                 if (convertUnknown) {
-                    Logger.LogInformation($"Fallback convertion: {Environment.NewLine}{fallbackValueConverter.ConvertValue(payloadData)}");
+                    Logger.LogDebug("Fallback convertion: {1}{0}", fallbackValueConverter.ConvertValue(payloadData), Environment.NewLine);
                     rawData.MqttValue = convertDefault.ConvertValue(payloadData);
                     rawData.MqttTopicExtention = $"{rawData.PayloadSenderCanId}_{rawData.ValueIndex}";
                 }
@@ -234,7 +234,7 @@ namespace can2mqtt.Translator.StiebelEltron
         {
             var canFrameString = string.Format("{0}#{1}{2}{3}FA{4}{5}", senderId, receiverId[0], canOperation, receiverId[1], index.ToString("X4"), hexPayload);
 
-            Logger.LogInformation("CAN Frame is: {0}", canFrameString);
+            Logger.LogDebug("CAN Frame is: {0}", canFrameString);
             //Verify Format of the translated back data
             if (canFrameString.Length != 18)
             {

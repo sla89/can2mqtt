@@ -216,7 +216,7 @@ namespace can2mqtt
 
                 // < send can_id can_datalength [data]* >
                 var canFrameSdCommand = string.Format("< send {0} {1} {2} >", CanSenderId, canFrameDataPart.Length / 2, canFrameSdData);
-                Logger.LogInformation("Sending CAN Frame: {0}", canFrameSdCommand);
+                Logger.LogDebug("Sending CAN Frame: {0}", canFrameSdCommand);
                 TcpCanStream.Write(Encoding.Default.GetBytes(canFrameSdCommand));
             }
         }
@@ -336,7 +336,7 @@ namespace can2mqtt
                             RawFrame = frame
                         };
 
-                        Logger.LogInformation("Received CAN Frame: {0}", canFrame.RawFrame);
+                        Logger.LogDebug("Received CAN Frame: {0}", canFrame.RawFrame);
                         responseData = responseData.Substring(responseData.IndexOf(" >") + 2);
 
                         //If forwarding is disabled for this type of frame, ignore it. Otherwise send the Frame
